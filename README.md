@@ -22,7 +22,7 @@ You can use the AWS CLI and `aws s3 cp <file_source> <s3_url>` command to copy t
 
 ## Setting up required resources
 
-### Creating an EMR-Serverless Application
+## 1. Creating an EMR-Serverless Application
 
 Create an EMR-Serverless Application with the following configurations: 
 
@@ -32,7 +32,7 @@ Create an EMR-Serverless Application with the following configurations:
 
 Leave all the other options as Default. 
 
-## Creating our Spark Job's Script
+### 1.1 Reviewing our Spark Job's Script
 
 Here's our Job's Script : [etl.py](https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/blob/main/etl.py). 
 
@@ -40,7 +40,7 @@ The script performs transformmation on the original dataset and writes it in Par
 
 **(you can change S3 Paths on lines 73 and 80 accordingly)**
 
-## Setting up Airflow on EC2-Instance
+## 2. Setting up Airflow on EC2-Instance
 
 Spin up an EC2 Instance with an Instance type equal or above "t3.medium". 
 
@@ -52,7 +52,58 @@ These settings enables us to SSH into the EC2 instance and access Airflow UI on 
 
 Leaving other settings as default, Launch the EC2 Instance. 
 
-## Creating an IAM Role for EC2 Instance
+### 2.1 Creating an EMR-Serverless Execution role
+
+Create an IAM Policy named **EMR-Serverless-Execution-Policy**:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
+                "<S3_Bucket_ARN>/*",
+                "<S3_Bucket_ARN>"
+            ]
+        }
+    ]
+}
+```
+
+Replace **<S3_Bucket_ARN>** with the ARN of your S3 Bucket.
+
+On the create IAM Role Page, select ***custom trust policy*** and add the following trust policy:
+
+```
+{
+    "Version": "2008-10-17",
+    "Statement": [
+        {
+            "Sid": "",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "emr-serverless.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+
+
+
+Attach the **EMR-Serverless-Execution-Policy** to the IAM Role. Name your role **EMR-Serverless-Execution-Role**.
+
+
+### 2.2 Creating an IAM Role for EC2 Instance
 
 Create an IAM Policy for the EC2 Instance to access EMR-Serverless
 
@@ -78,5 +129,129 @@ Create an IAM Policy for the EC2 Instance to access EMR-Serverless
 ```
 
 
+Replace the **emr_serverless_application_arn** with the ARN of your previously created EMR-Serverless Application
+
+**Attach the following IAM Role to your EC2 Instance**
+
+### 2.3 Installing Airflow
+
+Install Airflow on your EC2 Instance with the appropriate dependencies.
+
+Use the following command to create an Airflow user:
+
+```
+airflow create_user \
+--email email --firstname firstname \
+--lastname lastname --password password \
+--role Admin --username username
+```
+Replace email, firstname, lastname, password, and username with appropriate options. Select the role as Admin.
+
+Now, execute the following command
+
+`airflow webserver -p 8080` 
+
+This command starts airflow webserver on port 8080.
+
+Airflow UI can now be accessed on EC2 Instance's Public IP Address on Port 8080.
+
+`http://<Instance's public IP>:8080`
+
+Replace `<Instance's public IP>` with the Public IP Address of EC2 Instance. 
+
+
+<img width="1440" alt="Screenshot 2023-07-31 at 12 33 03 AM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/69663880-3439-46bc-8b79-09db0c9c9601">
+
+
+Verify by entering your username and password.
+
+## 3. Integrating S3 with Snowflake
+
+### 3.1 Creating a Snowflake IAM Role
+
+Create an IAM Policy named **snowflake_access**:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "statement1",
+            "Effect": "Allow",
+            "Action": [
+                "s3:*"
+            ],
+            "Resource": "<S3_Bucket_ARN>/*"
+        },
+        {
+            "Sid": "statement2",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "<S3_Bucket_ARN>"
+        }
+    ]
+}
+```
+
+Replace `<S3_Bucket_ARN>` with the ARN of your S3 Bucket. 
+
+Now, create an IAM Role named **snowflake_role** with the previously created **snowflake_access** IAM Policy attached to it.
+
+
+### 3.2 Creating Snowflake Storage Integration
+
+Execute the following command on Snowflake Console to create a Storage Integration:
+
+
+```
+CREATE STORAGE INTEGRATION s3_int
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = 'S3'
+ENABLED = TRUE
+STORAGE_AWS_ROLE_ARN = '<snowflake_role_arn>'
+STORAGE_ALLOWED_LOCATIONS = ('s3://<your_bucket_name>');
+```
+
+Replace **<snowflake_role_arn>** with the ARN of the previously created **snowflake_role**
+
+Also Replace **<your_bucket_name>** with the name of your S3 Bucket.
+
+Now execute the following command on Snowflake Console:
+
+`DESC INTEGRATION s3_int;`
+
+Copy values of the `STORAGE_AWS_IAM_USER_ARN` and `STORAGE_AWS_EXTERNAL_ID`.
+
+### 3.3 Editing snowflake_role
+
+Navigate to the previously created **snowflake_role** on the IAM Console and edit the ***Trust relationships*** for the Role.
+
+Add the following trust policy: 
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "<STORAGE_AWS_IAM_USER_ARN>"
+            },
+            "Action": "sts:AssumeRole",
+            "Condition": {
+                "StringEquals": {
+                    "sts:ExternalId": "<STORAGE_AWS_EXTERNAL_ID>"
+                }
+            }
+        }
+    ]
+}
+```
+
+Replace `STORAGE_AWS_IAM_USER_ARN` and `STORAGE_AWS_EXTERNAL_ID` with the values retrieved from the last step.
 
 
