@@ -32,5 +32,51 @@ Create an EMR-Serverless Application with the following configurations:
 
 Leave all the other options as Default. 
 
+## Creating our Spark Job's Script
+
+Here's our Job's Script : [etl.py](https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/blob/main/etl.py). 
+
+The script performs transformmation on the original dataset and writes it in Parquet Format.
+
+**(you can change S3 Paths on lines 73 and 80 accordingly)**
+
+## Setting up Airflow on EC2-Instance
+
+Spin up an EC2 Instance with an Instance type equal or above "t3.medium". 
+
+Edit the inbound security group rule settings: 
+
+<img width="1347" alt="Screenshot 2023-07-30 at 10 51 22 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/a3d0e67d-593a-490b-9f08-7bed5f5b4af7">
+
+These settings enables us to SSH into the EC2 instance and access Airflow UI on port 8080. 
+
+Leaving other settings as default, Launch the EC2 Instance. 
+
+## Creating an IAM Role for EC2 Instance
+
+Create an IAM Policy for the EC2 Instance to access EMR-Serverless
+
+```
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Allow",
+			"Action": "emr-serverless:*",
+			"Resource": [
+				"<emr_serverless_application_arn>",
+				"<emr_serverless_application_arn>/jobruns/*"
+			]
+		},
+		{
+			"Effect": "Allow",
+			"Action": "iam:PassRole",
+			"Resource": "<emr-serverless-execution-role-arn>"
+		}
+	]
+}
+```
+
+
 
 
