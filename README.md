@@ -18,7 +18,11 @@ The Dataset is based on NRDWP (National Rural Drinking Water Programme) of the I
 
 First, you have to download the Dataset and load it into an S3 Bucket ([Download here](https://data.gov.in/resource/basic-habitation-information-1st-april-2012)).
 
-You can use the AWS CLI and `aws s3 cp <file_source> <s3_url>` command to copy the files from your local machine to S3 Bucket.
+You can use the AWS CLI and `aws s3 cp <file_source> <s3_url>` command to copy the files from your local machine to S3 Bucket or upload it manually.
+
+<img width="1125" alt="Screenshot 2023-07-31 at 9 47 19 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/e533dee7-6de2-42b1-909e-a3bd5aa1ca61">
+
+
 
 ## Setting up required resources
 
@@ -34,15 +38,20 @@ Leave all the other options as Default.
 
 ### 1.1 Reviewing our Spark Job's Script
 
-Here's our Job's Script : [etl.py](https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/blob/main/etl.py). 
+Here's our Job's Script : [etl.py](https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/blob/main/etl.py)
 
-The script performs transformmation on the original dataset and writes it in Parquet Format.
+The script performs transformation on the original dataset and writes it in Parquet Format.
 
 **(you can change S3 Paths on lines 73 and 80 accordingly)**
 
-Save the script in S3 Bucket with appropriate path.
+***Save the script in S3 Bucket with appropriate path.***
+
+<img width="1146" alt="Screenshot 2023-07-31 at 9 51 23 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/3d84049f-93ce-45d7-9167-4d16ef6a1255">
+
 
 ## 2. Setting up Airflow on EC2-Instance
+
+### 2.1 Creating an EC2 Instance
 
 Spin up an EC2 Instance with an Instance type equal or above "t3.medium". 
 
@@ -55,7 +64,7 @@ These settings enables us to SSH into the EC2 instance and access Airflow UI on 
 Leaving other settings as default, Launch the EC2 Instance. 
 
 
-### 2.1 Creating an EMR-Serverless Execution role
+### 2.2 Creating an EMR-Serverless Execution role
 
 Create an IAM Policy named **EMR-Serverless-Execution-Policy**:
 
@@ -106,7 +115,7 @@ On the create IAM Role Page, select ***custom trust policy*** and add the follow
 Attach the **EMR-Serverless-Execution-Policy** to the IAM Role. Name your role **EMR-Serverless-Execution-Role**.
 
 
-### 2.2 Creating an IAM Role for EC2 Instance
+### 2.3 Creating an IAM Role for EC2 Instance
 
 Create an IAM Policy for the EC2 Instance to access EMR-Serverless
 
@@ -136,7 +145,7 @@ Replace the **emr_serverless_application_arn** with the ARN of your previously c
 
 **Attach the following IAM Role to your EC2 Instance**
 
-### 2.3 Installing Airflow
+### 2.4 Installing Airflow
 
 SSH into your EC2 Instance and Install Python and Airflow on your EC2 Instance with the appropriate dependencies. You can easily get a guide on how to do so.
 
@@ -281,6 +290,55 @@ Finally, verify the integration by executing the following command:
 `LIST @S3_STAGE;`
 
 If the command returns the objects in your Bucket, the integration is successful.
+
+
+## 3.5 Creating External Table
+
+Create a File format:
+
+```
+CREATE FILE FORMAT PARQUET_FORMAT
+TYPE = PARQUET
+COMPRESSION = SNAPPY;
+```
+
+Grant necessary privileges:
+
+```
+GRANT CREATE STAGE ON SCHEMA public TO ROLE ACCOUNTADMIN;
+GRANT USAGE ON INTEGRATION s3_int TO ROLE ACCOUNTADMIN;
+```
+These privileges will allow the ACCOUNTADMIN role to create stage and access the Integration created previously.
+
+Execute the following command to create an External Table in Snowflake:
+
+
+```
+CREATE OR REPLACE EXTERNAL TABLE habitation (
+  state_name VARCHAR AS SPLIT_PART(
+        SPLIT_PART(METADATA$FILENAME, '/', 3),
+        'state_name=', 2),
+  district_name VARCHAR AS (VALUE:district_name::VARCHAR),
+  block_name VARCHAR AS (VALUE:block_name::VARCHAR),
+  panchayat_name VARCHAR AS (VALUE:panchayat_name::VARCHAR),
+  village_name VARCHAR AS (VALUE:village_name::VARCHAR),
+  habitation_name VARCHAR AS (VALUE:habitation_name::VARCHAR),
+  sc_current_population BIGINT AS (VALUE:sc_current_population::BIGINT),
+  st_current_population BIGINT AS (VALUE:st_current_population::BIGINT),
+  general_current_population BIGINT AS (VALUE:general_current_population::BIGINT),
+  sc_covered_population BIGINT AS (VALUE:sc_covered_population::BIGINT),
+  st_covered_population BIGINT AS (VALUE:st_covered_population::BIGINT),
+  general_covered_population BIGINT AS (VALUE:general_covered_population::BIGINT),
+  status VARCHAR AS (VALUE:status::VARCHAR)
+)
+PARTITION BY (
+  state_name
+)
+LOCATION = @S3_STAGE/transformed/habitation 
+FILE_FORMAT = PARQUET_FORMAT;
+```
+
+**Modify the location accordingly with Path to your transformed Parquet files in S3**
 
 ## 4. Integrating Snowflake with Airflow
 
