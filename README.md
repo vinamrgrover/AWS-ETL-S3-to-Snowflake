@@ -52,6 +52,7 @@ These settings enables us to SSH into the EC2 instance and access Airflow UI on 
 
 Leaving other settings as default, Launch the EC2 Instance. 
 
+
 ### 2.1 Creating an EMR-Serverless Execution role
 
 Create an IAM Policy named **EMR-Serverless-Execution-Policy**:
@@ -135,9 +136,15 @@ Replace the **emr_serverless_application_arn** with the ARN of your previously c
 
 ### 2.3 Installing Airflow
 
-Install Airflow on your EC2 Instance with the appropriate dependencies.
+SSH into your EC2 Instance and Install Python and Airflow on your EC2 Instance with the appropriate dependencies. You can easily get a guide on how to do so.
 
-Use the following command to create an Airflow user:
+Execute the following shell command on your EC2 Instance:
+
+`airflow init`
+
+This command will initialize an Airflow Database.
+
+Next, Execute the following command to create an Airflow user:
 
 ```
 airflow create_user \
@@ -253,5 +260,72 @@ Add the following trust policy:
 ```
 
 Replace `STORAGE_AWS_IAM_USER_ARN` and `STORAGE_AWS_EXTERNAL_ID` with the values retrieved from the last step.
+
+
+### 3.4 Creating Stage
+
+Execute the following command to create an External Stage in Snowflake:
+
+```
+CREATE STAGE s3_stage
+URL = 's3://<your_bucket_name>/'
+STORAGE_INTEGRATION = s3_int;
+```
+
+Replace **<your_bucket_name>** with the name of your S3 Bucket.
+
+Finally, verify the integration by executing the following command:
+
+`LIST @S3_STAGE;`
+
+If the command returns the objects in your Bucket, the integration is successful.
+
+## 4. Integrating Snowflake with Airflow
+
+### 4.1 Installing Snowflake provider
+
+Execute the following command on your EC2 Instance:
+
+```pip install apache-airflow-providers-snowflake``` 
+
+This command will install Snowflake provider for Apache-Airflow.
+
+### 4.2 Adding Connection
+
+Navigate to the Airflow UI which we opened previously.
+
+Hover on the ***Admin*** Tab and select ***Connections***. Click on the **+** Sign to add a new Connection.
+
+Fill in the following details accordingly:
+
+<img width="1432" alt="Screenshot 2023-07-31 at 6 27 10 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/d73cef70-cb1a-4cb0-bfec-770233c2cf6d">
+
+
+<img width="1428" alt="Screenshot 2023-07-31 at 6 22 42 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/3a623d25-4b03-4341-b594-ecde24614cf7">
+
+Replace the following:
+
+**Schema** : Snowflake Schema
+
+**Login** : Snowflake username
+
+**Password** Snowflake password
+
+**Account** : Snowflake account URL
+
+**Warehouse** : Snowflake Warehouse
+
+**Database** : Snowflake Database
+
+**Region** : AWS Region
+
+**Role** : Snowflake Role
+
+Click on **Test** to test your connection. 
+
+You should recieve a message like this:
+
+<img width="1432" alt="Screenshot 2023-07-31 at 6 23 30 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/37190537-a51f-46ad-bca4-b51a1f048d66">
+
 
 
