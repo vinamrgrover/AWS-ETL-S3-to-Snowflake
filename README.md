@@ -1,5 +1,9 @@
 # AWS-ETL-S3-to-Snowflake
 
+## Architecture Diagram
+
+![S3_to_Snowflake drawio-3](https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/351a3dce-81fe-49bb-bcaa-c24ec53cca63)
+
 ## Description
 
 An ETL Pipeline which processes data from an S3 bucket, performs data transformation using EMR-Serverless, and loads the processed data back into the same S3 bucket. 
@@ -11,8 +15,15 @@ Appropriate IAM Roles are set up accordingly to ensure a secured workflow.
 The Dataset is based on NRDWP (National Rural Drinking Water Programme) of the Indian Government
 ([Download here](https://data.gov.in/resource/basic-habitation-information-1st-april-2012)).
 
+## Code Overview
 
+***[etl.py](https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/blob/main/etl.py)*** : Contains PySpark Code that will be submitted to EMR-Serverless Application
 
+***[emr_application.py](https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/blob/main/emr_application.py)*** : Contains utility functions to control EMR-Serverless Application
+
+***[dag.py](https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/blob/main/dag.py)*** : Contains Airflow DAG configuration and Tasks.
+
+**Note: store the emr_application.py and dag.py in your DAGs Folder**
 
 ## Downloading the Dataset
 
@@ -410,6 +421,12 @@ Replace:
 
 ### 5.2 Triggering DAG
 
+Run the following command to start Airflow webserver and scheduler:
+
+`airflow webserver -p 8080 & airflow scheduler &`
+
+This command starts Airflow Webserver and Scheduler as Daemons, which allows us to execute commands in the shell without freezing it.
+
 Navigate to the Airflow UI, Click on the DAG Named ***"S3_to_Snowflake"***
 
 Select the Play button on the upper right and click ***"Trigger DAG"***
@@ -436,3 +453,25 @@ If our Job Run is Succeeded, all the tasks will be executed normally:
 You can even check if the Job Run has succeeded by executing the following command in Snowflake Console:
 
 
+## Wrapping up
+
+Here are our Processed Parquet Files:
+
+<img width="1092" alt="Screenshot 2023-07-31 at 10 20 51 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/9ca5cb55-5f31-4492-a54d-b29b6cb3a9b4">
+
+
+You can check if the External Table has been refreshed by executing the following command in Snowflake Console:
+
+```
+SELECT
+    DISTINCT state_name
+FROM habitation;
+```
+
+<img width="945" alt="Screenshot 2023-07-31 at 10 13 41 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/1f711d60-0bd7-4c41-82a5-4099e8b6241b">
+
+### Stop Airflow Daemons
+
+You can terminate all the processes associated with airflow by executing the following command on your EC2 Instance:
+
+`ps aux | grep airflow | grep -v grep | awk '{print $2}' | xargs kill`
