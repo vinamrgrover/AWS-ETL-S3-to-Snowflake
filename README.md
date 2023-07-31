@@ -40,6 +40,8 @@ The script performs transformmation on the original dataset and writes it in Par
 
 **(you can change S3 Paths on lines 73 and 80 accordingly)**
 
+Save the script in S3 Bucket with appropriate path.
+
 ## 2. Setting up Airflow on EC2-Instance
 
 Spin up an EC2 Instance with an Instance type equal or above "t3.medium". 
@@ -328,4 +330,31 @@ You should recieve a message like this:
 <img width="1432" alt="Screenshot 2023-07-31 at 6 23 30 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/37190537-a51f-46ad-bca4-b51a1f048d66">
 
 
+## 5. Reviewing DAG
+
+### 5.1 Setting up essential environment variables
+
+First execute the following commands on your EC2 Instance:
+
+```
+export application_id=<emr_serverless_application_id>
+export execution_role_arn=<emr_serverless_execution_role_arn>
+export S3_script_location=<S3_location_job_script>
+```
+
+Replace:
+
+<emr_serverless_application_id> with the ARN of the EMR-Serverless Application **(Created in step 1)**
+
+<emr_serverless_execution_role_arn> with the ARN of the **EMR-Serverless-Execution-Role** **(Created in step 2.1)**
+
+<S3_location_job_script> with the S3 URL of the Job's Script **(Saved in step 1.1)**
+
+### 5.2 Triggering DAG
+
+Navigate to the Airflow UI, Click on the DAG Named ***"S3_to_Snowflake"***
+
+Select the Play button on the upper right and click ***"Trigger DAG"***
+
+Click the ***Graph*** tab to view the DAG's Graph
 
