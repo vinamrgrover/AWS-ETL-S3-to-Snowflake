@@ -358,3 +358,23 @@ Select the Play button on the upper right and click ***"Trigger DAG"***
 
 Click the ***Graph*** tab to view the DAG's Graph
 
+### 5.3 Two states of our DAG
+
+#### Failed
+
+If our Job Run fails, then the last task, i.e., ***SnowFlake Refresh***, won't be executed:
+
+<img width="1422" alt="Screenshot 2023-07-31 at 7 30 12 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/759c3277-3ff7-46fb-9ef5-2a281050a84b">
+
+
+As you can see our last Task (SnowFlake Refresh) has been marked as Skipped
+
+#### Success
+
+If our Job Run is Succeeded, all the tasks will be executed normally:
+
+<img width="1419" alt="Screenshot 2023-07-31 at 7 40 32 PM" src="https://github.com/vinamrgrover/AWS-ETL-S3-to-Snowflake/assets/100070155/83c3a38e-9d1a-4d35-ac99-96206ccc1b0d">
+
+You can even check if the Job Run has succeeded by executing the following command in Snowflake Console:
+
+
